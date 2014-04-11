@@ -3,6 +3,7 @@ import web
 import os
 import time
 import glob
+import subprocess
 
 web.config.debug = True
 
@@ -51,8 +52,8 @@ timeFormat = '%Y-%m-%d_%H:%M:%S'
 class Comment:
     def __init__(self, date, author, content):
         self.date = date
-        self.author = author
-        self.content = content
+        self.author = author.strip()
+        self.content = content.strip()
         
     def formatDate(self):
         return time.strftime(timeFormat, self.date)
@@ -144,7 +145,6 @@ class Bug:
         for comment in self.comments:
             content.append("** COMMENT %s %s" % (comment.author, comment.formatDate()))
             content.append(comment.content)
-        web.debug(content)
         return "\n".join(content)
 
 class Container:
@@ -207,13 +207,19 @@ def findBug(bugId):
 def writeBug(bugId, bug):
     writeFile("bugs/%d" % (bugId,), bug.serialize())
     
+def getCurrentUser():
+    proc = subprocess.Popen("git config --global --get user.email", stdout=subprocess.PIPE)
+    proc.wait()
+    return proc.stdout.read().strip()
+    
 def makeBug():
     bugIds = [bug.id for bug in listBugs()]
     if len(bugIds) > 0:
         id = max(bugIds) + 1
     else:
         id = 1
-    return Bug(id, '', 'mbrezu@gmail.com', 'New', [])
+    result = Bug(id, '', 'Nobody', 'New', [])
+    return result
 
 class BugsHandler:
     def GET(self):
@@ -253,8 +259,10 @@ class BugEditorHandler:
                     makeOption('In Progress', bug.status),
                     makeOption('Fixed', bug.status),
                     makeOption('Closed', bug.status)]
-        assignees = [makeOption('Nobody', bug.assignee),
-                     makeOption('mbrezu@gmail.com', bug.assignee)]
+        assignees = [makeOption('Nobody', bug.assignee)]
+        users = set([b.assignee for b in listBugs()]).union(set([getCurrentUser()]))
+        for user in users:
+            assignees.append(makeOption(user, bug.assignee))
         return render.main(render.editBug(bug, statuses, assignees), getPages("/bugs"))
 
 class SaveBugHandler:
@@ -275,11 +283,11 @@ class SaveBugHandler:
             flashMessage("Title cannot be empty")
             raise web.seeother('/bug-editor')
         if i.comment.strip() != "":
-            bug.comments.append(Comment(time.gmtime(), "mbrezu@gmail.com", i.comment.strip()))
+            bug.comments.append(Comment(time.gmtime(), getCurrentUser(), i.comment.strip()))
         writeBug(bugId, bug)
         flashMessage("Bug '%s' (%s) saved." % (i.title, i.id))
         raise web.seeother('/bugs')
-
+        
 if __name__ == "__main__":
     os.startfile("http://localhost:8080/")
     app.run()
