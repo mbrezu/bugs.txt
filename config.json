@@ -1,0 +1,11 @@
+{
+    "users": [ "alice@example.com",
+               "bob@example.com" ],
+    "statuses": [ "New",
+                  "In Progress",
+                  "Fixed",
+                  "Closed"
+                ],
+    "closedStatus": "Closed",
+    "newStatus": "New"
+}

@@ -4,6 +4,7 @@ import os
 import time
 import glob
 import subprocess
+import json
 
 web.config.debug = True
 
@@ -215,6 +216,21 @@ def findBug(bugId):
 def writeBug(bugId, bug):
     writeFile("bugs/" + bugId, bug.serialize())
     
+config = None
+def getConfig():
+    global config
+    if config == None:
+        if len(glob.glob("config.json")) > 0:
+            config = json.loads(readFile("config.json"))
+        else:
+            config = { "users": [],
+                       "statuses": [ "New",
+                                     "In Progress",
+                                     "Fixed",
+                                     "Closed" ],
+                       "closedStatus": "Closed" }
+    return config
+    
 currentUser = None
 def getCurrentUser():
     global currentUser
@@ -231,7 +247,7 @@ def makeBug():
         id = max(bugIds) + 1
     else:
         id = 1
-    result = Bug(str(id) + suffix, '', 'Nobody', 'New', [])
+    result = Bug(str(id) + suffix, '', 'Nobody', getConfig()["newStatus"], [])
     return result
 
 class BugsHandler:
@@ -253,10 +269,11 @@ class BugsHandler:
             a = "checked"
         if 'a' not in i and 'c' not in i:
             a = "checked"
+        closedStatus = getConfig()["closedStatus"].lower()
         if a == "checked":
-            abugs = [b for b in bugs if b.status.lower() != "closed"]
+            abugs = [b for b in bugs if b.status.lower() != closedStatus]
         if c == "checked":
-            cbugs = [b for b in bugs if b.status.lower() == "closed"]
+            cbugs = [b for b in bugs if b.status.lower() == closedStatus]
         return render.main(render.bugs(abugs + cbugs, q, a, c), getPages("/bugs"))
         
 def makeOption(name, current):
@@ -288,6 +305,7 @@ def getSortedUsers(includeNobody):
     users.append(getCurrentUser())
     if includeNobody:
         users.append('Nobody')
+    users += getConfig()["users"]
     users = set(users)
     if not includeNobody:
         users = users.difference(set(["Nobody"]))
@@ -313,10 +331,7 @@ class BugEditorHandler:
         if 'bug' not in session:
             raise web.seeother('/bugs')
         bug = session.bug
-        statuses = [makeOption('New', bug.status),
-                    makeOption('In Progress', bug.status),
-                    makeOption('Fixed', bug.status),
-                    makeOption('Closed', bug.status)]
+        statuses = [makeOption(s, bug.status) for s in getConfig()["statuses"]]
         assignees = []
         users = getSortedUsers(True)
         for user in users:
