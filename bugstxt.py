@@ -79,7 +79,7 @@ def stripConcat(acc):
 def handleState(result, acc, state):
     content = stripConcat(acc)
     if state == "id":
-        result.id = int(content)
+        result.id = content
     elif state == "title":
         result.title = content
     elif state == "assignee":
@@ -213,20 +213,25 @@ def findBug(bugId):
     return None
     
 def writeBug(bugId, bug):
-    writeFile("bugs/%d" % (bugId,), bug.serialize())
+    writeFile("bugs/" + bugId, bug.serialize())
     
+currentUser = None
 def getCurrentUser():
-    proc = subprocess.Popen("git config --global --get user.email", stdout=subprocess.PIPE)
-    proc.wait()
-    return proc.stdout.read().strip()
+    global currentUser
+    if currentUser == None:
+        proc = subprocess.Popen("git config --global --get user.email", stdout=subprocess.PIPE)
+        proc.wait()
+        currentUser = proc.stdout.read().strip()
+    return currentUser
     
 def makeBug():
-    bugIds = [bug.id for bug in listBugs()]
+    suffix = getSuffixesDict()[getCurrentUser()]
+    bugIds = [int(bug.id[:-len(suffix)]) for bug in listBugs() if bug.id.endswith(suffix)]
     if len(bugIds) > 0:
         id = max(bugIds) + 1
     else:
         id = 1
-    result = Bug(id, '', 'Nobody', 'New', [])
+    result = Bug(str(id) + suffix, '', 'Nobody', 'New', [])
     return result
 
 class BugsHandler:
@@ -266,7 +271,6 @@ def makeOption(name, current):
     
 class EditBugHandler:
     def GET(self, bugId):
-        bugId = int(bugId)
         bug = findBug(bugId)
         if bug == None:
             flashMessage('Bug not found')
@@ -278,6 +282,31 @@ class NewBugHandler:
     def GET(self):
         session.bug = makeBug()
         raise web.seeother('/bug-editor')
+        
+def getSortedUsers(includeNobody):
+    users = [b.assignee for b in listBugs()]
+    users.append(getCurrentUser())
+    if includeNobody:
+        users.append('Nobody')
+    users = set(users)
+    if not includeNobody:
+        users = users.difference(set(["Nobody"]))
+    users = list(users)
+    users.sort()
+    return users   
+    
+def letterify(n):
+    if n < 25:
+        return chr(ord('A') + n)
+    else:
+        return letterify(n / 26) + letterify(n % 26)
+    
+def getSuffixesDict():
+    users = getSortedUsers(False)
+    suffixes = {}
+    for x in range(len(users)):
+        suffixes[users[x]] = letterify(x)
+    return suffixes
             
 class BugEditorHandler:
     def GET(self):
@@ -288,8 +317,8 @@ class BugEditorHandler:
                     makeOption('In Progress', bug.status),
                     makeOption('Fixed', bug.status),
                     makeOption('Closed', bug.status)]
-        assignees = [makeOption('Nobody', bug.assignee)]
-        users = set([b.assignee for b in listBugs()]).union(set([getCurrentUser()]))
+        assignees = []
+        users = getSortedUsers(True)
         for user in users:
             assignees.append(makeOption(user, bug.assignee))
         return render.main(render.editBug(bug, statuses, assignees), getPages("/bugs"))
@@ -297,7 +326,7 @@ class BugEditorHandler:
 class SaveBugHandler:
     def POST(self):
         i = web.input()
-        bugId = int(i.id)
+        bugId = i.id
         if 'bug' not in session:
             bug = findBug(bugId)
             if bug == None:
