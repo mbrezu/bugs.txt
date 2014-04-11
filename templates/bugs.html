@@ -1,4 +1,4 @@
-$def with (bugs)
+$def with (bugs, q, a, c)
 
 <div class="container">
   $if session.flashMessage:
@@ -9,6 +9,25 @@ $def with (bugs)
         </div>
       </p>
   <h1>Here be bugs</h1>
+  <p>
+    <form method="get" action="/bugs" class="form-inline" role="form">
+       <div class="form-group">
+         <label class="control-label" for="q">Search: </label>
+         <input type="text" class="form-control" id="q" name="q" value="$q">
+         <div class="checkbox">
+           <label class="control-label" for="a">
+             <input type="checkbox" id="a" name="a" $a>Active Bugs
+           </label>
+         </div>
+         <div class="checkbox">
+           <label class="control-label" for="c">
+             <input type="checkbox" id="c" name="c" $c>Closed Bugs
+           </label>
+         </div>
+         <button type="submit" class="btn btn-success">Search</button>
+       </div>
+    </form>
+  </p>
   <p>
     <form method="get" action="/new-bug">
       <button type="submit" class="btn btn-success">New Bug</button>

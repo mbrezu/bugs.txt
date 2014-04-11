@@ -132,6 +132,14 @@ class Bug:
     def addComment(self, newComment):
         self.comments.append(newComment)
         
+    def containsAny(self, words):
+        content = self.serialize().lower()
+        words = [w.lower() for w in words]
+        for w in words:
+            if w in content:
+                return True
+        return False
+        
     def serialize(self):
         content = []
         content.append("** ID")
@@ -223,7 +231,28 @@ def makeBug():
 
 class BugsHandler:
     def GET(self):
-        return render.main(render.bugs(listBugs()), getPages("/bugs"))
+        bugs = listBugs()
+        i = web.input()
+        c = ""
+        q = ""
+        a = ""
+        if 'q' in i:
+            words = i.q.split(' ')
+            bugs = [b for b in bugs if b.containsAny(words)]
+            q = i.q
+        abugs = []
+        cbugs = []
+        if 'c' in i:
+            c = "checked"
+        if 'a' in i:
+            a = "checked"
+        if 'a' not in i and 'c' not in i:
+            a = "checked"
+        if a == "checked":
+            abugs = [b for b in bugs if b.status.lower() != "closed"]
+        if c == "checked":
+            cbugs = [b for b in bugs if b.status.lower() == "closed"]
+        return render.main(render.bugs(abugs + cbugs, q, a, c), getPages("/bugs"))
         
 def makeOption(name, current):
     result = Container()
