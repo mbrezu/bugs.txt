@@ -10,6 +10,9 @@ $def with (bugs)
       </p>
   <h1>Here be bugs</h1>
   <p>
+    <form method="get" action="/new-bug">
+      <button type="submit" class="btn btn-success">New Bug</button>
+    </form>
     <table class="table table-striped table-hover">
       <thead>
         <tr>
@@ -22,10 +25,10 @@ $def with (bugs)
       <tbody>
         $for bug in bugs:
             <tr>
-              <td><a href="$bug.link">$bug.id</a></td>
-              <td><a href="$bug.link">$bug.title</a></td>
-              <td><a href="$bug.link">$bug.status</a></td>
-              <td><a href="$bug.link">$bug.assignee</a></td>
+              <td><a href="$bug.link()">$bug.id</a></td>
+              <td><a href="$bug.link()">$bug.title</a></td>
+              <td><a href="$bug.link()">$bug.status</a></td>
+              <td><a href="$bug.link()">$bug.assignee</a></td>
             </tr>
       </tbody>
     </table>

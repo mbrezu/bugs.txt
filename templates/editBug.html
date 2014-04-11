@@ -1,0 +1,61 @@
+$def with (bug, statuses, assignees)
+
+<div class="container">
+  $if session.flashMessage:
+      <p>
+        <div class="alert alert-danger alert-dismissable">
+          <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+          $session.flashMessage
+        </div>
+      </p>
+  <h1>Bug no. $bug.id</h1>
+  <form method="post" action="/save-bug" class="form-horizontal" role="form">
+    <div class="form-group">
+      <label class="col-sm-1 control-label" for="title">Title:</label>
+      <div class="col-sm-7">
+        <input type="text" class="form-control" id="title" name="title" placeholder="Bug Title" value="$bug.title">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-1 control-label" for="status">Status:</label>
+      <div class="col-sm-3">
+        <select class="form-control" id="status" name="status" value="status">
+          $for status in statuses:
+              <option $status.selected value="$status.value">$status.name</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-1 control-label" for="assignee">Assignee:</label>
+      <div class="col-sm-3">
+        <select class="form-control" id="assignee" name="assignee">
+          $for assignee in assignees:
+               <option $assignee.selected value="$assignee.value">$assignee.name</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-left: 0px;">
+      $for comment in bug.comments:
+          <div class="row">
+            <p class="col-sm-offset-1 col-sm-7">
+              <strong>Comment by $comment.author on $comment.formatDateUi().</strong>
+            </p>
+          </div>
+          <div class="row">
+            <p class="col-sm-offset-1 col-sm-7">$comment.content</p>
+          </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-1 control-label" for="comment">New Comment:</label>
+      <div class="col-sm-7">
+        <textarea class="form-control" rows=10 id="comment" name="comment"></textarea>
+      </div>
+    </div>
+    <input type="hidden" name="id" value="$bug.id"/>
+    <div class="row">
+      <div class="col-sm-offset-1 col-sm-7">
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </form>
+</div>

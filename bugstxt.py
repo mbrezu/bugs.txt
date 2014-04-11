@@ -2,15 +2,19 @@
 import web
 import os
 import time
+import glob
 
 web.config.debug = True
 
 urls = (
-    '/', 'index',
-    '/documentation', 'documentation',
-    '/bugs', 'bugs',
-    '/edit-bug/(.*)', 'editBug',
-    '/contact', 'contact',
+    '/', 'IndexHandler',
+    '/documentation', 'DocumentationHandler',
+    '/bugs', 'BugsHandler',
+    '/edit-bug/(.*)', 'EditBugHandler',
+    '/new-bug', 'NewBugHandler',
+    '/bug-editor', 'BugEditorHandler',
+    '/save-bug', 'SaveBugHandler',
+    '/contact', 'ContactHandler',
 )
 
 app = web.application(urls, globals())
@@ -30,88 +34,89 @@ else:
     session = web.session.Session(app, web.session.DiskStore('sessions'))
 
 def flashMessageProcessor(handler):
-    if 'flashCounter' not in session:
-        session.flashCounter = 0
-        session.flashMessage = ''
     result = handler()
-    session.flashCounter -= 1
-    if session.flashCounter <= 0:
-        session.flashCounter = 0
-        session.flashMessage = ''
+    session.flashMessage = ''
     return result
     
 app.add_processor(flashMessageProcessor)
 
 def flashMessage(message):
-    session.flashCounter = 1
     session.flashMessage = message
 
 render = web.template.render("templates/",
                              globals = {'session': session})
 
-class comment:
+timeFormat = '%Y-%m-%d_%H:%M:%S'
+
+class Comment:
     def __init__(self, date, author, content):
         self.date = date
         self.author = author
         self.content = content
         
-timeFormat = '%Y-%m-%d_%H:%M:%S'
+    def formatDate(self):
+        return time.strftime(timeFormat, self.date)
         
-class bug:
-    # @staticmethod
-    # def deserialize(text):
-    #     lines = text.split("\n")
-    #     id = 0
-    #     title = ""
-    #     assignee = ""
-    #     status = ""
-    #     comments = []
-    #     state = 0
-    #     acc = []
-    #     def handleAcc():
-    #         if len(acc) == 0:
-    #             return
-    #         firstLine = None
-    #         lastLine = None
-    #         index = 0
-    #         for line in acc:
-    #             if firstLine == None and line.strip() != null:
-    #                 firstLine = index
-    #             lastLine = index
-    #             index += 1
-    #         lastLine += 1
-    #         acc = acc[firstLine:lastLine]
-    #         content = "\n".join(acc)
-    #         if state == "id":
-    #             id = int(acc)
-    #         elif state == "title":
-    #             title = acc
-    #         elif state == "assignee":
-    #             assignee = acc
-    #         elif state == "status":
-    #             status = acc
-    #         elif state.startswith("comment"):
-    #             stateContent = state.split(' ')
-    #             comments.append(comment(time.strptime(timeFormat, stateContent[2]),
-    #                                     stateContent[1], 
-    #                                     acc))
-    #     for line in lines:
-    #         if state == 0:
-    #             if line.strip() == "":
-    #                 continue
-    #             if line.strip().startswith("** "):
-    #                 state = line[3:].lower()
-    #                 acc = []
-    #         else:
-    #             if line.strip().startswith("** "):
-    #                 handleAcc()
-    #                 state = line[3:].lower()
-    #                 acc = []
-    #     handleAcc()           
-    #     if id == 0:
-    #         return None
-    #     else:
-    #         return bug(id, title, assignee, status, comments)
+    def formatDateUi(self):
+        return time.strftime('%Y-%m-%d %H:%M:%S', self.date)        
+        
+def stripConcat(acc):
+    if len(acc) == 0:
+        return ""
+    firstLine = None
+    lastLine = None
+    index = 0
+    for line in acc:
+        if firstLine == None and line.strip() != "":
+            firstLine = index
+        lastLine = index
+        index += 1
+    lastLine += 1
+    acc = acc[firstLine:lastLine]
+    return "\n".join(acc)
+    
+def handleState(result, acc, state):
+    content = stripConcat(acc)
+    if state == "id":
+        result.id = int(content)
+    elif state == "title":
+        result.title = content
+    elif state == "assignee":
+        result.assignee = content
+    elif state == "status":
+        result.status = content
+    elif state.startswith("comment"):
+        stateContent = state.split(' ')
+        result.comments.append(Comment(time.strptime(stateContent[2], timeFormat),
+                                       stateContent[1],
+                                       content))
+
+class Bug:
+    @staticmethod
+    def deserialize(text):
+        lines = text.split("\n")
+        result = Bug(None, None, None, None, [])
+        state = ""
+        acc = []
+        for line in lines:
+            if state == "":
+                if line.strip() == "":
+                    continue
+                if line.strip().startswith("** "):
+                    state = line[3:].lower()
+                    acc = []
+            else:
+                if line.strip().startswith("** "):
+                    handleState(result, acc, state)
+                    state = line[3:].lower()
+                    acc = []
+                else:
+                    acc.append(line)
+        handleState(result, acc, state)
+        if result.id == None:
+            return None
+        else:
+            return result
     
     def __init__(self, id, title, assignee, status, comments):
         self.id = id
@@ -119,7 +124,9 @@ class bug:
         self.assignee = assignee
         self.status = status
         self.comments = comments
-        self.link = "/edit-bug/" + str(id)
+        
+    def link(self):
+        return "/edit-bug/" + str(self.id)
         
     def addComment(self, newComment):
         self.comments.append(newComment)
@@ -135,15 +142,16 @@ class bug:
         content.append("** STATUS")
         content.append(self.status)
         for comment in self.comments:
-            content.append("** COMMENT %s %s" % (comment.author, time.strftime(comment.date, timeFormat)))
-            content.append(comment)
+            content.append("** COMMENT %s %s" % (comment.author, comment.formatDate()))
+            content.append(comment.content)
+        web.debug(content)
         return "\n".join(content)
 
-class container:
+class Container:
     pass
 
 def makePage(text, link, active):
-    result = container()
+    result = Container()
     result.text = text
     result.link = link
     if active == link:
@@ -158,40 +166,119 @@ def getPages(active):
             makePage("Documentation", "/documentation", active),
             makePage("Contact", "/contact", active)]
     
-class index:
+class IndexHandler:
     def GET(self):
         return render.main(render.index(), getPages("/"))
 
-class documentation:
+class DocumentationHandler:
     def GET(self):
-        web.debug("shit")
         return render.main(render.documentation(), getPages("/documentation"))
 
-class contact:
+class ContactHandler:
     def GET(self):
         return render.main(render.contact(), getPages("/contact"))
         
-def newBug(id, title):
-    return bug(id, title, "mbrezu@gmail.com", "New", [])
+def readFile(fn):
+    f = open(fn)
+    content = f.read()
+    f.close()
+    return content
     
-theBugs = []       
-theBugs.append(newBug(1, "Some bug"))
-theBugs.append(newBug(2, "Other bug"))
-theBugs.append(newBug(3, "Yet another"))
-theBugs.append(newBug(4, "Guess what"))
+def writeFile(fn, content):
+    f = open(fn, 'w')
+    f.write(content)
+    f.close()
+    
+def listBugs():
+    result = []
+    for filename in glob.glob("bugs/*"):
+        candidate = Bug.deserialize(readFile(filename))
+        if candidate:
+            result.append(candidate)
+    return result
+    
+def findBug(bugId):
+    for filename in glob.glob("bugs/*"):
+        candidate = Bug.deserialize(readFile(filename))
+        if candidate and bugId == candidate.id:
+            return candidate
+    return None
+    
+def writeBug(bugId, bug):
+    writeFile("bugs/%d" % (bugId,), bug.serialize())
+    
+def makeBug():
+    bugIds = [bug.id for bug in listBugs()]
+    if len(bugIds) > 0:
+        id = max(bugIds) + 1
+    else:
+        id = 1
+    return Bug(id, '', 'mbrezu@gmail.com', 'New', [])
 
-class bugs:
+class BugsHandler:
     def GET(self):
-        web.debug(repr(session.keys()))
-        return render.main(render.bugs(theBugs), getPages("/bugs"))
+        return render.main(render.bugs(listBugs()), getPages("/bugs"))
         
-class editBug:
+def makeOption(name, current):
+    result = Container()
+    result.name = name
+    result.value = name
+    if name == current:
+        result.selected = "selected"
+    else:
+        result.selected = ""
+    return result
+    
+class EditBugHandler:
     def GET(self, bugId):
         bugId = int(bugId)
-        bug = None
+        bug = findBug(bugId)
         if bug == None:
             flashMessage('Bug not found')
             raise web.seeother('/bugs')
+        session.bug = bug.deserialize(bug.serialize())
+        raise web.seeother('/bug-editor')
+            
+class NewBugHandler:
+    def GET(self):
+        session.bug = makeBug()
+        raise web.seeother('/bug-editor')
+            
+class BugEditorHandler:
+    def GET(self):
+        if 'bug' not in session:
+            raise web.seeother('/bugs')
+        bug = session.bug
+        statuses = [makeOption('New', bug.status),
+                    makeOption('In Progress', bug.status),
+                    makeOption('Fixed', bug.status),
+                    makeOption('Closed', bug.status)]
+        assignees = [makeOption('Nobody', bug.assignee),
+                     makeOption('mbrezu@gmail.com', bug.assignee)]
+        return render.main(render.editBug(bug, statuses, assignees), getPages("/bugs"))
+
+class SaveBugHandler:
+    def POST(self):
+        i = web.input()
+        bugId = int(i.id)
+        if 'bug' not in session:
+            bug = findBug(bugId)
+            if bug == None:
+                flashMessage('Bug not found')
+                raise web.seeother('/bugs')
+        else:
+            bug = session.bug
+        bug.title = i.title
+        bug.status = i.status
+        bug.assignee = i.assignee
+        if i.title.strip() == "":
+            flashMessage("Title cannot be empty")
+            raise web.seeother('/bug-editor')
+        if i.comment.strip() != "":
+            bug.comments.append(Comment(time.gmtime(), "mbrezu@gmail.com", i.comment.strip()))
+        writeBug(bugId, bug)
+        flashMessage("Bug '%s' (%s) saved." % (i.title, i.id))
+        raise web.seeother('/bugs')
 
 if __name__ == "__main__":
     os.startfile("http://localhost:8080/")
