@@ -37,6 +37,10 @@ You need a working [Python](http://python.org) (2.6+) install with
 Export the bugs.txt repository into your sources (or clone it and
 delete the `.git` directory).
 
+You need a valid email configured in your git configuration (i.e. you
+have run something like `git config --global user.email
+"your_email@example.com"`). 
+
 ## Configuration
 
 There is a `config.json` file that you can use to customize bugs.txt.

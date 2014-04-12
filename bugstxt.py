@@ -6,6 +6,7 @@ import time
 import glob
 import subprocess
 import json
+import webbrowser
 
 web.config.debug = True
 
@@ -238,7 +239,8 @@ currentUser = None
 def getCurrentUser():
     global currentUser
     if currentUser == None:
-        proc = subprocess.Popen("git config --global --get user.email", stdout=subprocess.PIPE)
+        proc = subprocess.Popen("git config --global --get user.email".split(' '),
+                                stdout=subprocess.PIPE)
         proc.wait()
         currentUser = proc.stdout.read().strip()
     return currentUser
@@ -367,5 +369,5 @@ class SaveBugHandler:
 if __name__ == "__main__":
     if not os.path.isdir('bugs'):
         os.mkdir('bugs')
-    os.startfile("http://localhost:8080/bugs")
+    webbrowser.open("http://localhost:8080/bugs")
     app.run()
