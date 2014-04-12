@@ -10,10 +10,11 @@ $def with (bugs, q, a, c)
       </p>
   <h1>Here be bugs</h1>
   <p>
-    <form method="get" action="/bugs" class="form-inline" role="form">
+    <form method="get" action="/bugs" class="form-inline" role="form" id="formSearch">
       <div class="form-group">
         <label class="control-label" for="q">Search: </label>
         <input type="text" class="form-control" id="q" name="q" value="$q">
+        <span style="position: relative; left: -20px; top: 3px;" id="clr" class="glyphicon glyphicon-remove"></span>
         <div class="checkbox">
           <label class="control-label" for="a">
             <input type="checkbox" id="a" name="a" $a>Active Bugs
@@ -53,3 +54,4 @@ $def with (bugs, q, a, c)
     </table>
   </p>
 </div>
+<script src="/static/js/bugs.js"></script>

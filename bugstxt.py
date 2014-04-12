@@ -362,5 +362,5 @@ class SaveBugHandler:
         raise web.seeother('/bugs')
         
 if __name__ == "__main__":
-    os.startfile("http://localhost:8080/")
+    os.startfile("http://localhost:8080/bugs")
     app.run()
