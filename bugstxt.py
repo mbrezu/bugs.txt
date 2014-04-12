@@ -1,6 +1,7 @@
 
 import web
 import os
+import os.path
 import time
 import glob
 import subprocess
@@ -36,6 +37,8 @@ else:
     session = web.session.Session(app, web.session.DiskStore('sessions'))
 
 def flashMessageProcessor(handler):
+    if 'flashMessage' not in session:
+        session.flashMessage = ''
     result = handler()
     session.flashMessage = ''
     return result
@@ -362,5 +365,7 @@ class SaveBugHandler:
         raise web.seeother('/bugs')
         
 if __name__ == "__main__":
+    if not os.path.isdir('bugs'):
+        os.mkdir('bugs')
     os.startfile("http://localhost:8080/bugs")
     app.run()
