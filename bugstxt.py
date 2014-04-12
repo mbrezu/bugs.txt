@@ -290,7 +290,7 @@ def makeOption(name, current):
     else:
         result.selected = ""
     return result
-    
+
 class EditBugHandler:
     def GET(self, bugId):
         bug = findBug(bugId)
@@ -298,12 +298,12 @@ class EditBugHandler:
             flashMessage('Bug not found')
             raise web.seeother('/bugs')
         session.bug = bug.deserialize(bug.serialize())
-        raise web.seeother('/bug-editor')
+        return editorHandler()
             
 class NewBugHandler:
     def GET(self):
         session.bug = makeBug()
-        raise web.seeother('/bug-editor')
+        return editorHandler()
         
 def getSortedUsers(includeNobody):
     users = [b.assignee for b in listBugs()]
@@ -331,17 +331,21 @@ def getSuffixesDict():
         suffixes[users[x]] = letterify(x)
     return suffixes
             
+def editorHandler():
+    if 'bug' not in session:
+        raise web.seeother('/bugs')
+    bug = session.bug
+    statuses = [makeOption(s, bug.status) for s in getConfig()["statuses"]]
+    assignees = []
+    users = getSortedUsers(True)
+    for user in users:
+        assignees.append(makeOption(user, bug.assignee))
+    return render.main(render.editBug(bug, statuses, assignees),
+                       getPages("/bugs"))
+    
 class BugEditorHandler:
     def GET(self):
-        if 'bug' not in session:
-            raise web.seeother('/bugs')
-        bug = session.bug
-        statuses = [makeOption(s, bug.status) for s in getConfig()["statuses"]]
-        assignees = []
-        users = getSortedUsers(True)
-        for user in users:
-            assignees.append(makeOption(user, bug.assignee))
-        return render.main(render.editBug(bug, statuses, assignees), getPages("/bugs"))
+        return editorHandler()
 
 class SaveBugHandler:
     def POST(self):
